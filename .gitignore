@@ -1,0 +1,50 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+*.db
+*.sqlite3
+*.log
+*.pot
+*.mo
+*.po
+MANIFEST
+
+# Virtual Environments
+.venv
+venv
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+
+# FastAPI / Uvicorn
+*.log
+.uvicorn*
+.gunicorn*
+
+# IDEs and editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Node.js / React (if applicable)
+node_modules/
+dist/
+build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
