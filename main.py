@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 import models
@@ -7,25 +6,16 @@ import crud
 import schemas
 from database import SessionLocal, engine
 
-# Create all tables
 models.Base.metadata.create_all(bind=engine)
 
-# Create FastAPI app
 app = FastAPI()
 
-# ✅ Correct CORS middleware setup
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # no trailing slash
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# Dependency to get DB session
+# Dependency
 def get_db():
+    """
+    Provide a database session to path operation functions.
+    """
     db = SessionLocal()
     try:
         yield db
@@ -33,24 +23,35 @@ def get_db():
         db.close()
 
 
-# Routes
 @app.get("/")
 def read_root():
+    """
+    Root endpoint returning a welcome message.
+    """
     return {"message": "Welcome to the To-Do List API!"}
 
 
 @app.get("/tasks", response_model=List[schemas.Task])
 def read_tasks(db: Session = Depends(get_db)):
+    """
+    Retrieve all tasks.
+    """
     return crud.get_tasks(db)
 
 
 @app.post("/tasks", response_model=schemas.Task)
 def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
+    """
+    Create a new task.
+    """
     return crud.create_task(db, task)
 
 
 @app.get("/tasks/{task_id}", response_model=schemas.Task)
 def read_task(task_id: int, db: Session = Depends(get_db)):
+    """
+    Retrieve a task by its ID.
+    """
     db_task = crud.get_task(db, task_id)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -61,6 +62,9 @@ def read_task(task_id: int, db: Session = Depends(get_db)):
 def update_task(
     task_id: int, task_update: schemas.TaskUpdate, db: Session = Depends(get_db)
 ):
+    """
+    Update a task's title and description.
+    """
     db_task = crud.update_task(db, task_id, task_update.title, task_update.description)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -69,6 +73,9 @@ def update_task(
 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int, db: Session = Depends(get_db)):
+    """
+    Delete a task by its ID.
+    """
     success = crud.delete_task(db, task_id)
     if not success:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -77,6 +84,9 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 
 @app.patch("/tasks/{task_id}/completed")
 def complete_task(task_id: int, db: Session = Depends(get_db)):
+    """
+    Mark a task as completed.
+    """
     db_task = crud.get_task(db, task_id)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -87,6 +97,9 @@ def complete_task(task_id: int, db: Session = Depends(get_db)):
 
 @app.patch("/tasks/{task_id}/uncompleted")
 def uncomplete_task(task_id: int, db: Session = Depends(get_db)):
+    """
+    Mark a task as uncompleted.
+    """
     db_task = crud.get_task(db, task_id)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -97,4 +110,7 @@ def uncomplete_task(task_id: int, db: Session = Depends(get_db)):
 
 @app.get("/stats")
 def stats(db: Session = Depends(get_db)):
+    """
+    Get statistics about tasks.
+    """
     return crud.get_stats(db)
