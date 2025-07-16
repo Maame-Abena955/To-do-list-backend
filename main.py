@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 import models
@@ -10,6 +11,22 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+# 👇 Add this section for CORS
+origins = [
+    "http://localhost:5173",  # Vite default
+    "http://localhost:5174",  # Your specific port
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "*"  # You can tighten this later for security
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Dependency
 def get_db():
