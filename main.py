@@ -1,38 +1,15 @@
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List
-import models
-import crud
-import schemas
+import models, schemas, crud
 from database import SessionLocal, engine
+from typing import List
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# 👇 Add this section for CORS
-origins = [
-    "http://localhost:5173",  # Vite default
-    "http://localhost:5174",  # Your specific port
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-    "*"  # You can tighten this later for security
-]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Dependency
 def get_db():
-    """
-    Provide a database session to path operation functions.
-    """
     db = SessionLocal()
     try:
         yield db
@@ -41,48 +18,46 @@ def get_db():
 
 
 @app.get("/")
-def read_root():
-    """
-    Root endpoint returning a welcome message.
-    """
+def root():
     return {"message": "Welcome to the To-Do List API!"}
 
 
-@app.get("/tasks", response_model=List[schemas.Task])
-def read_tasks(db: Session = Depends(get_db)):
-    """
-    Retrieve all tasks.
-    """
-    return crud.get_tasks(db)
+@app.post("/lists", response_model=schemas.List)
+def create_list(name: str, db: Session = Depends(get_db)):
+    return crud.create_list(db, name)
 
 
-@app.post("/tasks", response_model=schemas.Task)
-def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
-    """
-    Create a new task.
-    """
-    return crud.create_task(db, task)
+@app.get("/lists", response_model=List[schemas.List])
+def get_lists(db: Session = Depends(get_db)):
+    return crud.get_lists(db)
+
+
+@app.delete("/lists/{list_id}")
+def delete_list(list_id: int, db: Session = Depends(get_db)):
+    success = crud.delete_list(db, list_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="List not found")
+    return {"detail": "List deleted"}
+
+
+@app.post("/lists/{list_id}/tasks", response_model=schemas.Task)
+def create_task_in_list(
+    list_id: int, task: schemas.TaskCreate, db: Session = Depends(get_db)
+):
+    return crud.create_task_in_list(db, list_id, task)
 
 
 @app.get("/tasks/{task_id}", response_model=schemas.Task)
-def read_task(task_id: int, db: Session = Depends(get_db)):
-    """
-    Retrieve a task by its ID.
-    """
+def get_task(task_id: int, db: Session = Depends(get_db)):
     db_task = crud.get_task(db, task_id)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
     return db_task
 
 
-@app.put("/tasks/{task_id}")
-def update_task(
-    task_id: int, task_update: schemas.TaskUpdate, db: Session = Depends(get_db)
-):
-    """
-    Update a task's title and description.
-    """
-    db_task = crud.update_task(db, task_id, task_update.title, task_update.description)
+@app.put("/tasks/{task_id}", response_model=schemas.Task)
+def update_task(task_id: int, task: schemas.TaskUpdate, db: Session = Depends(get_db)):
+    db_task = crud.update_task(db, task_id, task.title, task.description)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
     return db_task
@@ -90,44 +65,29 @@ def update_task(
 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int, db: Session = Depends(get_db)):
-    """
-    Delete a task by its ID.
-    """
     success = crud.delete_task(db, task_id)
     if not success:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"detail": "Task deleted"}
 
 
-@app.patch("/tasks/{task_id}/completed")
+@app.patch("/tasks/{task_id}/completed", response_model=schemas.Task)
 def complete_task(task_id: int, db: Session = Depends(get_db)):
-    """
-    Mark a task as completed.
-    """
-    db_task = crud.get_task(db, task_id)
+    db_task = crud.mark_completed(db, task_id, True)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if db_task.completed:
-        raise HTTPException(status_code=400, detail="Task is already completed")
-    return crud.mark_completed(db, task_id, True)
+    return db_task
 
 
-@app.patch("/tasks/{task_id}/uncompleted")
+@app.patch("/tasks/{task_id}/uncompleted", response_model=schemas.Task)
 def uncomplete_task(task_id: int, db: Session = Depends(get_db)):
-    """
-    Mark a task as uncompleted.
-    """
-    db_task = crud.get_task(db, task_id)
+    db_task = crud.mark_completed(db, task_id, False)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if not db_task.completed:
-        raise HTTPException(status_code=400, detail="Task is already uncompleted")
-    return crud.mark_completed(db, task_id, False)
+    return db_task
 
 
 @app.get("/stats")
 def stats(db: Session = Depends(get_db)):
-    """
-    Get statistics about tasks.
-    """
     return crud.get_stats(db)
+
