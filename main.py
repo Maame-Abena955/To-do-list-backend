@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List as ListType
 import models, crud, schemas
 from database import SessionLocal, engine
 
@@ -9,11 +9,9 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# ✅ Allow requests from your frontend
 origins = [
     "http://localhost:5174",
-    "https://your-frontend-domain.com",  # optional
-    "*",  # allow everything for now
+    "*",
 ]
 
 app.add_middleware(
@@ -25,7 +23,6 @@ app.add_middleware(
 )
 
 
-# Dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -39,18 +36,19 @@ def read_root():
     return {"message": "Welcome to the To-Do List API!"}
 
 
-@app.get("/tasks", response_model=List[schemas.Task])
-def read_tasks(db: Session = Depends(get_db)):
+# ✅ TASK endpoints
+@app.post("/tasks", response_model=schemas.Task)
+def create_task(task: schemas.TaskCreate, list_id: int, db: Session = Depends(get_db)):
+    return crud.create_task(db, task, list_id)
+
+
+@app.get("/tasks", response_model=ListType[schemas.Task])
+def get_tasks(db: Session = Depends(get_db)):
     return crud.get_tasks(db)
 
 
-@app.post("/tasks", response_model=schemas.Task)
-def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
-    return crud.create_task(db, task)
-
-
 @app.get("/tasks/{task_id}", response_model=schemas.Task)
-def read_task(task_id: int, db: Session = Depends(get_db)):
+def get_task(task_id: int, db: Session = Depends(get_db)):
     db_task = crud.get_task(db, task_id)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -61,7 +59,7 @@ def read_task(task_id: int, db: Session = Depends(get_db)):
 def update_task(
     task_id: int, task_update: schemas.TaskUpdate, db: Session = Depends(get_db)
 ):
-    db_task = crud.update_task(db, task_id, task_update.title, task_update.description)
+    db_task = crud.update_task(db, task_id, task_update.title, task_update.completed)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
     return db_task
@@ -77,22 +75,18 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 
 @app.patch("/tasks/{task_id}/completed")
 def complete_task(task_id: int, db: Session = Depends(get_db)):
-    db_task = crud.get_task(db, task_id)
+    db_task = crud.mark_completed(db, task_id, True)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if db_task.completed:
-        raise HTTPException(status_code=400, detail="Task is already completed")
-    return crud.mark_completed(db, task_id, True)
+    return db_task
 
 
 @app.patch("/tasks/{task_id}/uncompleted")
 def uncomplete_task(task_id: int, db: Session = Depends(get_db)):
-    db_task = crud.get_task(db, task_id)
+    db_task = crud.mark_completed(db, task_id, False)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if not db_task.completed:
-        raise HTTPException(status_code=400, detail="Task is already uncompleted")
-    return crud.mark_completed(db, task_id, False)
+    return db_task
 
 
 @app.get("/stats")
@@ -100,14 +94,15 @@ def stats(db: Session = Depends(get_db)):
     return crud.get_stats(db)
 
 
-@app.get("/lists", response_model=List[schemas.List])
+# ✅ LIST endpoints
+@app.post("/lists", response_model=schemas.List)
+def create_list(list_data: schemas.ListCreate, db: Session = Depends(get_db)):
+    return crud.create_list(db, list_data)
+
+
+@app.get("/lists", response_model=ListType[schemas.List])
 def read_lists(db: Session = Depends(get_db)):
     return crud.get_lists(db)
-
-
-@app.post("/lists", response_model=schemas.List)
-def create_list(db: Session = Depends(get_db), name: str = "New List"):
-    return crud.create_list(db, name)
 
 
 @app.get("/lists/{list_id}", response_model=schemas.List)
@@ -116,6 +111,23 @@ def read_list(list_id: int, db: Session = Depends(get_db)):
     if not db_list:
         raise HTTPException(status_code=404, detail="List not found")
     return db_list
+
+
+@app.delete("/lists/{list_id}")
+def delete_list(list_id: int, db: Session = Depends(get_db)):
+    success = crud.delete_list(db, list_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="List not found")
+    return {"detail": "List deleted"}
+
+
+@app.get("/lists/{list_id}/tasks", response_model=ListType[schemas.Task])
+def get_tasks_by_list(list_id: int, db: Session = Depends(get_db)):
+    tasks = crud.get_tasks_by_list(db, list_id)
+    if tasks is None:
+        raise HTTPException(status_code=404, detail="List not found or has no tasks")
+    return tasks
+
 
 
 
