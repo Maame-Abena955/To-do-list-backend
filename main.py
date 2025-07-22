@@ -5,13 +5,15 @@ from typing import List as ListType
 import models, crud, schemas
 from database import SessionLocal, engine
 
+# Create database tables
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+# ✅ CORS configuration
 origins = [
-    "http://localhost:5174",
-    "*",
+    "http://localhost:5173",        # React dev server
+    "http://127.0.0.1:5173",        # sometimes browsers resolve to 127.0.0.1
 ]
 
 app.add_middleware(
@@ -22,7 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+# ✅ Dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -30,13 +32,15 @@ def get_db():
     finally:
         db.close()
 
-
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the To-Do List API!"}
 
 
+# -------------------------
 # ✅ TASK endpoints
+# -------------------------
+
 @app.post("/tasks", response_model=schemas.Task)
 def create_task(task: schemas.TaskCreate, list_id: int, db: Session = Depends(get_db)):
     return crud.create_task(db, task, list_id)
@@ -94,7 +98,10 @@ def stats(db: Session = Depends(get_db)):
     return crud.get_stats(db)
 
 
+# -------------------------
 # ✅ LIST endpoints
+# -------------------------
+
 @app.post("/lists", response_model=schemas.List)
 def create_list(list_data: schemas.ListCreate, db: Session = Depends(get_db)):
     return crud.create_list(db, list_data)
@@ -127,6 +134,7 @@ def get_tasks_by_list(list_id: int, db: Session = Depends(get_db)):
     if tasks is None:
         raise HTTPException(status_code=404, detail="List not found or has no tasks")
     return tasks
+
 
 
 
