@@ -1,3 +1,5 @@
+
+
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List as ListType
@@ -34,13 +36,11 @@ class ListBase(BaseModel):
 
 
 class ListCreate(ListBase):
-    tasks: Optional[ListType[TaskCreate]] = []
+    pass  # removed tasks
 
 
 class List(ListBase):
     id: int
-    tasks: ListType[Task] = []
 
     class Config:
         orm_mode = True
-
