@@ -77,9 +77,6 @@ def create_list(db: Session, list_data: ListCreate):
     db.add(db_list)
     db.commit()
     db.refresh(db_list)
-    for task in list_data.tasks:
-        create_task(db, task, db_list.id)
-    db.refresh(db_list)
     return db_list
 
 
@@ -98,5 +95,3 @@ def delete_list(db: Session, list_id: int):
     db.delete(db_list)
     db.commit()
     return True
-
-
